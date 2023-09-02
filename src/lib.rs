@@ -145,7 +145,8 @@ impl Preprocessor for StdReference {
 
 			let stdout =
 				eval(conf.registry.as_ref().expect("registry set").to_owned())?;
-			let mut docs: StdDocSchema = serde_json::from_str(&stdout)?;
+			let mut docs: StdDocSchema = serde_json::from_str(&stdout)
+        .context("Failed to parse json from output")?;
 
 			if conf.cell.is_some() {
 				docs.0

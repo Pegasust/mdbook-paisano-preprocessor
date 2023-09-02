@@ -51,34 +51,47 @@ in
         text = ''
           # ensure CARGO_HOME is populated
           mkdir -p $PRJ_DATA_DIR/cargo
-          ln -f -s -t $PRJ_DATA_DIR/cargo $(ls -d ${cell.rust.toolchain}/*)
+          "${nixpkgs.coreutils}/bin/ln" -snft $PRJ_DATA_DIR/cargo $(ls -d ${cell.rust.toolchain}/*)
         '';
       };
 
-      env = [
-        {
-          # ensure subcommands are picked up from the right place
-          # but also is writable
-          name = "CARGO_HOME";
-          eval = "$PRJ_DATA_DIR/cargo";
-        }
-        {
-          # ensure cargo caches to .std/rustup
-          name = "RUSTUP_HOME";
-          eval = "$PRJ_DATA_DIR/rustup";
-        }
-        {
-          name = "RUST_SRC_PATH";
-          # accessing via toolchain doesn't fail if it's not there
-          # and rust-analyzer is graceful if it's not set correctly:
-          # https://github.com/rust-lang/rust-analyzer/blob/7f1234492e3164f9688027278df7e915bc1d919c/crates/project-model/src/sysroot.rs#L196-L211
-          value = "${cell.rust.toolchain}/lib/rustlib/src/rust/library";
-        }
-        {
-          name = "PKG_CONFIG_PATH";
-          value = lib.makeSearchPath "lib/pkgconfig" inputs.cells.app.package.mdbook-paisano-preprocessor.buildInputs;
-        }
-      ];
+      env =
+        [
+          {
+            # ensure subcommands are picked up from the right place
+            # but also is writable
+            name = "CARGO_HOME";
+            eval = "$PRJ_DATA_DIR/cargo";
+          }
+          {
+            # ensure cargo caches to .std/rustup
+            name = "RUSTUP_HOME";
+            eval = "$PRJ_DATA_DIR/rustup";
+          }
+          {
+            name = "RUST_SRC_PATH";
+            # accessing via toolchain doesn't fail if it's not there
+            # and rust-analyzer is graceful if it's not set correctly:
+            # https://github.com/rust-lang/rust-analyzer/blob/7f1234492e3164f9688027278df7e915bc1d919c/crates/project-model/src/sysroot.rs#L196-L211
+            value = "${cell.rust.toolchain}/lib/rustlib/src/rust/library";
+          }
+          {
+            name = "PKG_CONFIG_PATH";
+            value = lib.makeSearchPath "lib/pkgconfig" inputs.cells.app.package.mdbook-paisano-preprocessor.buildInputs;
+          }
+        ]
+        ++ lib.optionals (nixpkgs.stdenv.isDarwin) [
+          {
+            name = "PATH";
+            prefix = let
+              inherit (nixpkgs) xcbuild;
+            in
+              lib.makeBinPath [
+                xcbuild
+                "${xcbuild}/Toolchains/XcodeDefault.xctoolchain"
+              ];
+          }
+        ];
     };
 
     book = {
